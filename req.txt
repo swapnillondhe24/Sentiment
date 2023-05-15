@@ -1,0 +1,10 @@
+python-dateutil
+requests
+selectorlib
+pandas
+matplotlib
+seaborn
+reportlab
+nltk
+wordcloud
+textblob
