@@ -6,7 +6,10 @@ from wordcloud import WordCloud
 from datetime import datetime
 
 # Load the Amazon reviews data into a pandas dataframe
-reviews_df = pd.read_csv('../data.csv')
+try:
+    reviews_df = pd.read_csv('../data.csv')
+except:
+    reviews_df = pd.read_csv('data.csv')
 
 # Initialize the VADER sentiment analyzer
 sia = SentimentIntensityAnalyzer()

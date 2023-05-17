@@ -76,8 +76,8 @@ def genrate_urls(url):
 
     print(id)
     links = []
-    for star in stars:
-      links.append("https://www.amazon.in/product-reviews/B0BRKXTSBT/ref=cm_cr_unknown?ie=UTF8&reviewerType=all_reviews&filterByStar="+star+"_star")
+    for i in range(1,11):
+      links.append("https://www.amazon.in/product-reviews/"+id+"/ref=cm_cr_unknown?ie=UTF8&reviewerType=all_reviews&pageNumber="+str(i))
 
 
     return links
