@@ -1,18 +1,102 @@
+from flask_cors import CORS
+import jwt
 from Scraper.reviews import generate_data
 
-from Model.sentiment import generate_sentiment
+from Model.sentiment import generate_sentiment, scrape_amazon_product
 
-# data = generate_data('https://www.amazon.in/Bassbuds-Duo-Headphones-Water-Resistant-Assistance/dp/B09DD9SX9Z/ref=sr_1_1?_encoding=UTF8&_ref=dlx_gate_sd_dcl_tlt_04410e8d_dt&content-id=amzn1.sym.9e4ae409-2145-4395-aa6e-45d7f3e95c3e&pd_rd_r=81b7691e-3f71-41a4-bf8e-549b314a692e&pd_rd_w=D8FkQ&pd_rd_wg=5AAru&pf_rd_p=9e4ae409-2145-4395-aa6e-45d7f3e95c3e&pf_rd_r=KSHN3MBQKSQWTSEM51MT&qid=1684171691&sr=8-1')
 
 
 import os
-from flask import Flask, jsonify, request, send_file, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+from bson import ObjectId
+from datetime import datetime, timedelta
+load_dotenv()
 
 app = Flask(__name__)
-app.use_x_sendfile = True
+# app.use_x_sendfile = True
+
+# Set maximum file size for uploads to 16 megabytes
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = "./"
 
-@app.route('/images', methods=['GET'])
+
+
+cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
+cors = CORS(app)
+
+
+uri = os.getenv("MONGO_URI")
+secret = os.getenv("SECRET_KEY")
+
+client = MongoClient(uri)
+db = client['DecenDS']
+users = db['DecenDS_users']
+app.config['SECRET_KEY'] = secret
+
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        # print(request.headers)
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].split(" ")[0]
+
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = users.find_one({'_id': ObjectId(data['user_id'])})
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+
+        return f(current_user, *args, **kwargs)
+
+    return decorated
+
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    
+    data = request.get_json()
+    # print(data)
+    if users.find_one({'username': data['username']}):
+        return jsonify({'message': 'Username already exists'}), 409
+    
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    user = {'username': data['username'], 'password': hashed_password,'email': data['email']}
+    users.insert_one(user)
+    return jsonify({'message': 'User registered successfully'})
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    # print(data)
+    user = users.find_one({'username': data['username']})
+    if not user or not check_password_hash(user['password'], data['password']):
+        return jsonify({'message': 'Invalid username or password'}), 401
+    # Generate JWT token
+    payload = {
+        'user_id': str(user['_id']),
+        'exp': datetime.utcnow() + timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return jsonify({'token': token})
+
+
+
+
+
+@app.route('/image', methods=['GET'])
 def get_images():
     images = []
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
@@ -20,20 +104,39 @@ def get_images():
             images.append(filename)
     return {'images': images}
 
+@app.route('/images/<path:filename>', methods=['GET'])
+@token_required
+def download_file(current_user,filename):
+    return send_from_directory("../", filename, mimetype='image/png')
 
-@app.route('/uploads')
-def download_file():
+
+@app.route('/images', methods=['POST',])
+@token_required
+def get_image(current_user):
+    print(request.json)
     filename = request.json['filename']
-    return send_from_directory("../",filename)
+    print(filename)
+    return send_from_directory("../", filename,mimetype='image/png')
+
+
+@app.route('/productdetails', methods=['POST'])
+@token_required
+def get_details(current_user):
+    url = request.json['url']
+    return scrape_amazon_product(url)
 
 
 @app.route('/sentiment', methods=['POST'])
-def get_sentiment():
+@token_required
+def get_sentiment(current_user):
     url = request.json['url']
 
     generate_data(url)
-    
-    return jsonify(generate_sentiment())
+
+    print("Generating sentiment")
+    ret = generate_sentiment()
+    # print(ret)
+    return jsonify(ret)
 
 
 if __name__ == '__main__':

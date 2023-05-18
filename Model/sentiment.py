@@ -1,8 +1,10 @@
 import io
+from bs4 import BeautifulSoup
 from matplotlib import image
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+import requests
 import seaborn as sns
 import numpy as np
 import wordcloud
@@ -22,7 +24,22 @@ def generate_sentiment():
     except:
         df = pd.read_csv('data.csv')
 
+
     data = df.copy()
+    
+    # print(data['rating'].unique())
+
+# Step 2: Handle missing or invalid values
+    data['rating'] = data['rating'].replace('rating',1)  # Filling missing values with 0
+
+# Step 3: Convert the column to the correct data type
+    data['rating'] = data['rating'].astype(float)
+
+# Verify the converted column
+    # print(data['rating'].dtypes)
+
+    # return 0
+
 
     # Clean the data
     data.dropna(subset=['content'], inplace=True)
@@ -61,7 +78,6 @@ def generate_sentiment():
                 chart = plt.imshow(wc, interpolation='bilinear')
 
             elif chart_type == 'network':
-                # Create network diagram
                 data = data['content'].str.lower()
                 text = ' '.join(data.values.astype(str))
                 text = ' '.join([word for word in text.split() if word not in stopwords.words('english')])
@@ -90,7 +106,7 @@ def generate_sentiment():
     # Generate charts for top positive reviews
     heatmap = generate_chart(data, 'Top Reviews - Rating Heatmap', 'heatmap')
     
-    data.iloc[1:]['rating'] = data.iloc[1:]['rating'].astype(float)
+    # data.rating = data.rating.astype(float,copy=False)
     
     top_pos = data[data['rating'] >= 4]
     # bar_chart = generate_chart(top_pos['rating'], 'Top Positive Reviews - Rating Count', 'bar')
@@ -117,7 +133,7 @@ def generate_sentiment():
     # Initialize PDF document
 
 
-    def write_to_image_and_pdf(name,chart,x,y,w,h):
+    def write_to_image_and_pdf(name,chart):
         try:
             chart_image = Image.open(io.BytesIO(chart.getvalue()))
             chart_image = chart_image.convert('RGB')
@@ -129,25 +145,27 @@ def generate_sentiment():
 
 
 
-    write_to_image_and_pdf('pie',pie_chart, x=10, y=10, w=100, h=100)
-    write_to_image_and_pdf("bar",bar_chart, x=5, y=120, w=100, h=100)
-    write_to_image_and_pdf("line",line_chart, x=5, y=235, w=100, h=100)
-    write_to_image_and_pdf("heatmap",heatmap, x=120, y=5, w=100, h=100)
-    write_to_image_and_pdf("scatter",scatter_plot, x=120, y=120, w=100, h=100)
-    write_to_image_and_pdf("wordcloud",wordcloud_chart, x=250, y=250, w=200, h=200)
+    write_to_image_and_pdf('pie',pie_chart)
+    write_to_image_and_pdf("bar",bar_chart)
+    write_to_image_and_pdf("line",line_chart)
+    write_to_image_and_pdf("heatmap",heatmap)
+    write_to_image_and_pdf("scatter",scatter_plot)
+    write_to_image_and_pdf("wordcloud",wordcloud_chart)
 
     # write_to_image_and_pdf("pie_neu", pie_chart_neu, x=400, y=10, w=100, h=100)
     # write_to_image_and_pdf("bar_neu", bar_chart_neu, x=400, y=120, w=100, h=100)
 
-    write_to_image_and_pdf("wordcloud_neu", wordcloud_chart_neu, x=650, y=250, w=200, h=200)
-    write_to_image_and_pdf("network_neu", network_chart_neu, x=650, y=250, w=200, h=200)
+    write_to_image_and_pdf("wordcloud_neu", wordcloud_chart_neu)
+    write_to_image_and_pdf("network_neu", network_chart_neu)
 
 
 
 
-    write_to_image_and_pdf("wordcloud_neg", wordcloud_chart_neg, x=250, y=475, w=200, h=200)
-    write_to_image_and_pdf("network_neg", network_chart_neg, x=50, y=550, w=500, h=500)
+    write_to_image_and_pdf("wordcloud_neg", wordcloud_chart_neg)
+    write_to_image_and_pdf("network", network_chart)
+    write_to_image_and_pdf("network_neg", network_chart_neg)
 
+    print("Images generated")
 
     from nltk.sentiment import SentimentIntensityAnalyzer
 
@@ -162,17 +180,44 @@ def generate_sentiment():
         df['content_sentiment_label'] = df['content_sentiment_scores'].apply(lambda x: 'positive' if x['compound'] > 0.2 else ('negative' if x['compound'] < -0.2 else 'neutral'))
 
         # Create a new DataFrame with the required columns
-        result_df = df[['content', 'content_sentiment_label']]
+        result_df = df[['content', 'content_sentiment_label']][:200]
 
         # Convert the DataFrame to JSON
         result_json = result_df.to_json(orient='records')
         return result_json
 
-    sentiment_report = sentiment_report()
+    # sentiment_rep = 
+    
+    return sentiment_report()
 
-    print('Sentiment report generated successfully!')
-    return sentiment_report
 
+
+def scrape_amazon_product(url):
+    headers = {
+        'authority': 'www.amazon.com',
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache',
+        'dnt': '1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'sec-fetch-site': 'none',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-dest': 'document',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+    }
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    title = soup.find(id='productTitle').get_text().strip()
+    image_url = soup.find(id='landingImage')['src']
+    review_count = soup.find(id='acrCustomerReviewText').get_text().split()[0]
+
+    ret_frame = {
+        'title': title,
+        'image_url': image_url,
+        'review_count': review_count
+    }
+    return ret_frame
 
 if __name__ == '__main__':
     print(generate_sentiment())

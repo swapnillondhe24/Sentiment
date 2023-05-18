@@ -29,20 +29,18 @@ def scrape(url):
     # Download the page using requests
     print("Downloading %s"%url)
     r = requests.get(url, headers=headers)
+    # print(r.text)
     # Simple check to check if page was blocked (Usually 503)
-    if r.status_code > 500:
-        if "To discuss automated access to Amazon data please contact" in r.text:
-            print("Page %s was blocked by Amazon. Please try using better proxies\n"%url)
-        else:
-            print("Page %s must have been blocked by Amazon as the status code was %d"%(url,r.status_code))
-        return None
+    if "To discuss automated access to Amazon data" in r.text:
+        print("Page %s was blocked by Amazon. Please try using better proxies\n"%url)
     # Pass the HTML of the page and create 
+    # print(e.extract(r.text))
     return e.extract(r.text)
 
 # product_data = []
 def read_urls(urls):
 
-    with open('data.csv','a') as outfile:
+    with open('data.csv','w') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=["title","content","date","variant","images","verified","author","rating","product","url"],quoting=csv.QUOTE_ALL)
         writer.writeheader()
         for url in urls:
@@ -67,7 +65,7 @@ def read_urls(urls):
                         writer.writerow(r)
 
             except:
-                pass
+                print("No data")
 
 def genrate_urls(url):
 
@@ -76,8 +74,9 @@ def genrate_urls(url):
 
     print(id)
     links = []
-    for i in range(1,11):
-      links.append("https://www.amazon.in/product-reviews/"+id+"/ref=cm_cr_unknown?ie=UTF8&reviewerType=all_reviews&pageNumber="+str(i))
+    for i in range(2,11):
+      links.append("https://www.amazon.in/product-reviews/"+id+"/ref=cm_cr_arp_d_paging_btm_next_"+str(i)+"?ie=UTF8&reviewerType=all_reviews&pageNumber="+str(i))
+      
 
 
     return links
@@ -89,6 +88,9 @@ def generate_data(url):
     except Exception as e:
         print("Error ",e)
 
+
+if __name__ == '__main__':
+    generate_data("https://www.amazon.in/OnePlus-Nord-Marble-128GB-Storage/product-reviews/B08695ZSP6/ref=cm_cr_dp_d_show_all_btm?ie=UTF8&reviewerType=all_reviews")
 
 
 
