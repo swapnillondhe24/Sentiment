@@ -8,3 +8,5 @@ reportlab
 nltk
 wordcloud
 textblob
+flask 
+flask-cors
