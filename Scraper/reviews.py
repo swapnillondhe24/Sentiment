@@ -29,7 +29,7 @@ def scrape(url):
     # Download the page using requests
     print("Downloading %s"%url)
     r = requests.get(url, headers=headers)
-    print(r.text)
+    # print(r.text)
     # Simple check to check if page was blocked (Usually 503)
     if "To discuss automated access to Amazon data" in r.text:
         print("Page %s was blocked by Amazon. Please try using better proxies\n"%url)
