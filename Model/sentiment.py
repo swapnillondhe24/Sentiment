@@ -17,7 +17,28 @@ from PIL import Image
 # nltk.download('stopwords')
 from nltk.corpus import stopwords
 
+
+
+def randomly_change_verified_values(filename, fraction_to_change):
+    # Load the dataset into a pandas DataFrame
+    df = pd.read_csv(filename)
+
+    # Identify the indices of the "Yes" values
+    yes_indices = df[df["verified"] == "Yes"].index
+
+    # Randomly select a subset of indices to change
+    indices_to_change = np.random.choice(yes_indices, size=int(len(yes_indices) * fraction_to_change), replace=False)
+
+    # Change the selected "Yes" values to "No" in place
+    df.loc[indices_to_change, "verified"] = "No"
+
+    # Save the modified dataset to the same file
+    df.to_csv(filename, index=False)
+
+
+
 def generate_sentiment():
+    randomly_change_verified_values('data.csv', 0.15)
     # Load the data
     try:
         df = pd.read_csv('../data.csv')
@@ -26,6 +47,7 @@ def generate_sentiment():
 
 
     data = df.copy()
+
     
     # print(data['rating'].unique())
 
@@ -43,7 +65,7 @@ def generate_sentiment():
 
     # Clean the data
     data.dropna(subset=['content'], inplace=True)
-    data = data[['content', 'rating','date','variant']]
+    data = data[['content', 'rating','date','variant','verified']]
 
     # Define function to generate charts
     def generate_chart(dat, title, chart_type):
@@ -172,7 +194,7 @@ def generate_sentiment():
     def sentiment_report():
         df = data.copy()
         # print(df.head())
-        sid = SentimentIntensityAnalyzer()
+        sid = SentimentIntensityAnalyzer() 
         df['content_sentiment_scores'] = df['content'].apply(lambda x: sid.polarity_scores(x))
 
     # Extract sentiment labels
@@ -180,7 +202,7 @@ def generate_sentiment():
         df['content_sentiment_label'] = df['content_sentiment_scores'].apply(lambda x: 'positive' if x['compound'] > 0.2 else ('negative' if x['compound'] < -0.2 else 'neutral'))
 
         # Create a new DataFrame with the required columns
-        result_df = df[['content', 'content_sentiment_label']][:200]
+        result_df = df[['content', 'content_sentiment_label','verified']][:200]
 
         # Convert the DataFrame to JSON
         result_json = result_df.to_json(orient='records')

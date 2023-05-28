@@ -56,7 +56,7 @@ def read_urls(urls):
                             if 'Verified Purchase' in r['verified']:
                                 r['verified'] = 'Yes'
                             else:
-                                r['verified'] = 'Yes'
+                                r['verified'] = 'no'
                         r['rating'] = r['rating'].split(' out of')[0]
                         date_posted = r['date'].split('on ')[-1]
                         if r['images']:
