@@ -10,7 +10,6 @@ import numpy as np
 import wordcloud
 matplotlib.use('Agg')
 import networkx as nx
-from fpdf import FPDF
 from io import BytesIO
 import nltk
 from PIL import Image
@@ -19,13 +18,28 @@ from nltk.corpus import stopwords
 
 
 
+def randomly_change_verified_values(filename, fraction_to_change):
+    # Load the dataset into a pandas DataFrame
+    df = pd.read_csv(filename,encoding='mac_roman')
+
+    yes_indices = df[df["verified"] == "Yes"].index
+
+    indices_to_change = np.random.choice(yes_indices, size=int(len(yes_indices) * fraction_to_change), replace=False)
+
+    df.loc[indices_to_change, "verified"] = "No"
+
+    df.to_csv(filename, index=False)
+
+
 
 def generate_sentiment():
+    randomly_change_verified_values('data.csv', 0.15)
     # Load the data
     try:
-        df = pd.read_csv('../data.csv')
+        df = pd.read_csv('data.csv',encoding='mac_roman')
     except:
-        df = pd.read_csv('data.csv')
+        
+        df = pd.read_csv('../data.csv',encoding='mac_roman')
 
 
     data = df.copy()
