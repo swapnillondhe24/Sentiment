@@ -67,6 +67,8 @@ def read_urls(urls):
             except:
                 print("No data")
 
+    
+
 def genrate_urls(url):
 
     id = url.split("/")[5]
